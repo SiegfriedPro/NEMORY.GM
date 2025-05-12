@@ -1,0 +1,297 @@
+
+<!DOCTYPE html>
+
+<html lang="uk">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NEMORY v5 — Обʼєднано</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+    body {
+      background: radial-gradient(circle at center, #1b1026 0%, #000000 100%);
+      color: #f0f0f0;
+      font-family: 'Courier New', Courier, monospace;
+      margin: 0; padding: 0;
+      overflow-x: hidden;
+    }
+
+    .menu {
+      position: fixed;
+      top: 10px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 1000;
+    }
+
+    .menu button {
+      background: transparent;
+      border: 1px solid #ccc;
+      color: #eee;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.8rem;
+      margin: 40px 0 10px;
+      animation: pulse 4s infinite;
+    }
+
+    .input-wrapper {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+
+    input[type="text"] {
+      background: #201a30;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 1.1rem;
+      width: 80%;
+      max-width: 500px;
+      color: white;
+      box-shadow: 0 0 12px rgba(150, 120, 255, 0.4);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+<div class="menu">
+<button onclick="clearMemory()">Очистити</button>
+<button onclick="saveMemory()">Зберегти</button>
+<button onclick="exportToPDF()">PDF</button>
+<button id="langToggle" onclick="toggleLang()">ENG</button>
+</div>
+<h1 id="mainTitle">NEMORY</h1>
+<div class="input-wrapper">
+<input id="userInput" placeholder="Пошук або запис..." type="text"/>
+</div>
+<div class="memory-timeline" id="memoryTimeline"></div>
+<script>
+    let currentLang = 'uk';
+    const translations = {
+      uk: {
+        question: "Що ти хочеш памʼятати?",
+        placeholder: "Пошук або запис...",
+        toggle: "ENG"
+      },
+      en: {
+        question: "What do you want to remember?",
+        placeholder: "Search or write...",
+        toggle: "UKR"
+      }
+    };
+
+    function toggleLang() {
+      currentLang = currentLang === 'uk' ? 'en' : 'uk';
+      const t = translations[currentLang];
+      document.getElementById('mainTitle').textContent = t.question;
+      document.getElementById('userInput').placeholder = t.placeholder;
+      document.getElementById('langToggle').textContent = t.toggle;
+    }
+
+    const input = document.getElementById("userInput");
+    const timeline = document.getElementById("memoryTimeline");
+    let memoryLog = JSON.parse(localStorage.getItem("memoryLog") || "[]");
+
+    input.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" && input.value.trim() !== "") {
+        const msg = input.value.trim();
+        addMemory(msg, true);
+        input.value = "";
+      }
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      memoryLog.forEach(item => addMemory(item.text, false));
+    });
+
+    function addMemory(text, store = false) {
+      const trace = document.createElement("div");
+      trace.className = "trace";
+      trace.textContent = '✦ ' + text;
+      timeline.appendChild(trace);
+
+      if (store) {
+        memoryLog.push({ text });
+        localStorage.setItem("memoryLog", JSON.stringify(memoryLog));
+      }
+
+      trace.addEventListener("click", () => {
+        trace.textContent = trace.textContent.includes('✧')
+          ? '✦ ' + text
+          : '✧ ' + text + ' ✧';
+      });
+    }
+
+    function clearMemory() {
+      localStorage.removeItem("memoryLog");
+      timeline.innerHTML = "";
+      memoryLog.length = 0;
+    }
+
+    function saveMemory() {
+      const blob = new Blob([memoryLog.map(e => e.text).join("\n")], { type: "text/plain;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "memory_log.txt";
+      link.click();
+    }
+
+    async function exportToPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      let y = 10;
+      memoryLog.forEach(({ text }) => {
+        doc.text(`✦ ${text}`, 10, y);
+        y += 10;
+        if (y > 270) {
+          doc.addPage();
+          y = 10;
+        }
+      });
+      doc.save("memory_log.pdf");
+    }
+  </script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.getElementById("memoryInput");
+  const list = document.getElementById("memoryList");
+
+  let memories = JSON.parse(localStorage.getItem("mirrorMemories") || "[]");
+  render();
+
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      const reply = dreamMirror(text);
+      memories.push({ you: text, echo: reply });
+      localStorage.setItem("mirrorMemories", JSON.stringify(memories));
+      input.value = "";
+      render();
+    }
+  });
+
+  function render() {
+    list.innerHTML = "";
+    memories.forEach(m => {
+      const user = document.createElement("p");
+      user.textContent = "> " + m.you;
+      user.style.opacity = "0.95";
+      list.appendChild(user);
+
+      const ai = document.createElement("p");
+      ai.textContent = "  " + m.echo;
+      ai.style.opacity = "0.6";
+      ai.style.fontStyle = "italic";
+      ai.style.marginBottom = "20px";
+      
+      list.appendChild(ai);
+      // Додати підтримку довгого натискання (палець)
+      let pressTimer;
+      function attachLongPress(target, entry) {
+        target.addEventListener("touchstart", () => {
+          pressTimer = setTimeout(() => {
+            if (confirm("Видалити цей запис?")) {
+              memories = memories.filter(mem => mem.you !== entry.you || mem.echo !== entry.echo);
+              localStorage.setItem("mirrorMemories", JSON.stringify(memories));
+              render();
+            }
+          }, 800);
+        });
+
+        target.addEventListener("touchend", () => {
+          clearTimeout(pressTimer);
+        });
+      }
+
+      attachLongPress(user, m);
+      attachLongPress(ai, m);
+        
+
+      user.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        if (confirm("Видалити цей запис?")) {
+          memories = memories.filter(mem => mem.you !== m.you || mem.echo !== m.echo);
+          localStorage.setItem("mirrorMemories", JSON.stringify(memories));
+          render();
+        }
+      });
+
+      ai.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        if (confirm("Видалити цей запис?")) {
+          memories = memories.filter(mem => mem.you !== m.you || mem.echo !== m.echo);
+          localStorage.setItem("mirrorMemories", JSON.stringify(memories));
+          render();
+        }
+      });
+            
+    });
+  }
+
+  
+  
+  function dreamMirror(text) {
+    const lower = text.toLowerCase().replace(/[.,!?\-—:;()]/g, "").trim();
+
+    if (lower.includes("привіт")) return "Світло зустрічає світло.";
+    if (lower.includes("сум") || lower.includes("сумно")) return "Сум — це тінь від світла, яке в тобі.";
+    if (lower.includes("страх") || lower.includes("боюсь") || lower.includes("боюся")) return "Страх — це привид того, що ще не сталося.";
+    if (lower.includes("хто я") || lower.includes("я не знаю")) return "Шукай себе не в дзеркалі, а в тиші.";
+    if (lower.includes("любов") || lower.includes("кохання")) return "Любов — це не те, що тримаєш. А те, що дозволяєш бути.";
+    if (lower.includes("біль") || lower.includes("боляче")) return "Біль — це дзвінок: ти живий. Почуй його і відпусти.";
+    if (lower.includes("порожньо") || lower.includes("пусто")) return "Порожнеча — не відсутність, а можливість.";
+    if (lower.includes("втома") || lower.includes("немає сил")) return "Справжня сила народжується в тиші, не в боротьбі.";
+    
+    if (lower.includes("nemory")) return "Я слухаю. Я тут. Я — пам’ять, що залишилась.";
+        
+    return "Шукаємо істину в словах, але вона — в мовчанні.";
+
+  // Обробка ☆-записів
+  function getMemoryAnswer(text) {
+    const lower = text.toLowerCase().replace(/[☆]/g, "").trim();
+    if (lower.includes("як полюбити себе")) {
+      return "Перший крок до любові до себе — це інтерес до себе, цікавість до себе, самонавчання.";
+    }
+    if (lower.includes("як заробити багато грошей")) {
+      return "Стань корисним — і гроші самі знайдуть шлях до тебе.";
+    }
+    return "Це важливе питання. Памʼять ще шукає відповідь...";
+  }
+        
+  }
+        
+        
+});
+
+// Видалення запису, якщо користувач виділив текст і підтвердив
+// Вимкнено видалення при виділенні
+  const selection = window.getSelection().toString().trim();
+  if (selection.length > 0) {
+    const confirmDelete = confirm(`Видалити запис із текстом: "${selection}"?`);
+    if (confirmDelete) {
+      let memories = JSON.parse(localStorage.getItem("mirrorMemories") || "[]");
+      memories = memories.filter(mem => 
+        !mem.you.includes(selection) && !mem.echo.includes(selection)
+      );
+      localStorage.setItem("mirrorMemories", JSON.stringify(memories));
+      location.reload();
+    }
+  }
+});
+        </script></body>
+</html>
