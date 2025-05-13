@@ -1,0 +1,235 @@
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEMORY</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(160deg, #0a0a0a, #141414, #1c1c1c); background-size: 400% 400%; animation: bgFlow 20s ease infinite;
+      color: #eaeaea;
+      font-family: 'Segoe UI', sans-serif;
+      overflow-x: hidden;
+      transition: all 0.8s ease-in-out;
+    }
+    .centered {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .breathe {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      animation: breathe 4s ease-in-out infinite;
+      margin-bottom: 40px;
+    }
+    @keyframes bgFlow {
+  0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;}
+}
+
+@keyframes breathe {
+      0%, 100% { transform: scale(1); opacity: 0.4; }
+      50% { transform: scale(1.1); opacity: 0.7; }
+    }
+    h1, p {
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
+      text-align: center;
+      margin: 10px 20px;
+    }
+    button {
+      padding: 12px 24px;
+      background: #444;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin: 10px;
+    }
+    button:hover {
+      background: #666;
+    }
+    textarea {
+      width: 80%;
+      height: 150px;
+      background: #1a1a1a;
+      color: #eaeaea;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 1rem;
+      margin-bottom: 20px;
+    }
+    #petals, #garden-petals {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      max-width: 90%;
+      margin-top: 30px;
+    }
+    .petal {
+  box-shadow: 0 0 8px rgba(255,255,255,0.1);
+  backdrop-filter: blur(4px);
+  background: rgba(255,255,255,0.03);
+      padding: 10px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      font-size: 0.95rem;
+      color: #ccc;
+      cursor: pointer;
+      transition: transform 0.3s ease, background 0.3s;
+      animation: bloom 0.6s ease-out;
+    }
+    .petal:hover {
+      transform: scale(1.1);
+      background: rgba(255, 255, 255, 0.1);
+    }
+    @keyframes bloom {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    #modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 20px;
+      color: #eaeaea;
+      z-index: 1000;
+    }
+    #modal-content {
+      background: #1a1a1a;
+      padding: 30px;
+      border-radius: 16px;
+      max-width: 600px;
+    }
+  </style>
+</head>
+<body onload="loadMemories()">
+  <audio id="ambient-sound" loop autoplay>
+    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_a1d35b7411.mp3?filename=soft-ambient-pad-20694.mp3" type="audio/mpeg">
+  </audio>
+  <button onclick="toggleSound()" style="position: fixed; top: 10px; right: 10px; z-index: 999;">Тиша / Звук</button>
+
+  <div id="start-screen" class="centered">
+    <div class="breathe"></div>
+    <h1>Тиша. Тут починається памʼять.</h1>
+    <p>Ніякого шуму. Лише ти. І світ, що слухає.</p>
+    <button onclick="enterMemory()">Увійти в себе</button>
+  </div>
+
+  <div id="memory-space" class="centered" style="display:none;">
+    <h1>Що хоче залишитись у тобі?</h1>
+    <textarea id="memory-input" placeholder="Запиши стан, думку або тишу..."></textarea>
+    <button onclick="plantMemory()">Посадити в памʼяті</button>
+    <button onclick="openGarden()">Перейти в Сад</button>
+    <p id="confirmation" style="margin-top: 20px; color: #aaffaa;"></p>
+    <div id="petals"></div>
+  </div>
+
+  <div id="memory-garden" class="centered" style="display:none;">
+    <h1>Сад Усередині</h1>
+    <p>Це всі твої памʼяті, що розцвіли.</p>
+    <div id="garden-petals"></div>
+    <button onclick="backToMemory()">Повернутись</button>
+    <button onclick="exportMemories()">Завантажити памʼять</button>
+  </div>
+
+  <div id="modal"><div id="modal-content"></div></div>
+
+  <script>
+    function enterMemory() {
+      document.getElementById('start-screen').style.display = 'none';
+      document.getElementById('memory-space').style.display = 'flex';
+    }
+    function openGarden() {
+      document.getElementById('memory-space').style.display = 'none';
+      document.getElementById('memory-garden').style.display = 'flex';
+      renderGarden();
+    }
+    function backToMemory() {
+      document.getElementById('memory-garden').style.display = 'none';
+      document.getElementById('memory-space').style.display = 'flex';
+    }
+    function plantMemory() {
+      const input = document.getElementById('memory-input');
+      const text = input.value.trim();
+      if (!text) return;
+      const petals = JSON.parse(localStorage.getItem('memoryPetals') || '[]');
+      petals.push(text);
+      localStorage.setItem('memoryPetals', JSON.stringify(petals));
+      addPetal(text);
+      input.value = '';
+      document.getElementById('confirmation').textContent = 'Памʼять прийняла. Тепер вона росте всередині.';
+    }
+    function addPetal(text) {
+      const petal = document.createElement('div');
+      petal.className = 'petal';
+      petal.textContent = text.length > 30 ? text.slice(0, 30) + '…' : text;
+      petal.title = text;
+      petal.onclick = () => showModal(text);
+      document.getElementById('petals').appendChild(petal);
+    }
+    function renderGarden() {
+      const container = document.getElementById('garden-petals');
+      container.innerHTML = '';
+      const petals = JSON.parse(localStorage.getItem('memoryPetals') || '[]');
+      petals.forEach(text => {
+        const petal = document.createElement('div');
+        petal.className = 'petal';
+        petal.textContent = text.length > 30 ? text.slice(0, 30) + '…' : text;
+        petal.title = text;
+        petal.onclick = () => showModal(text);
+        container.appendChild(petal);
+      });
+    }
+    function showModal(text) {
+      const modal = document.getElementById('modal');
+      const content = document.getElementById('modal-content');
+      content.textContent = text;
+      modal.style.display = 'flex';
+      modal.onclick = () => { modal.style.display = 'none'; };
+    }
+    function loadMemories() {
+      const petals = JSON.parse(localStorage.getItem('memoryPetals') || '[]');
+      petals.forEach(addPetal);
+    }
+    function exportMemories() {
+      const petals = JSON.parse(localStorage.getItem('memoryPetals') || '[]');
+      const content = petals.join("\n\n---\n\n");
+      const blob = new Blob([content], { type: 'text/plain' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'NEMORY_Pamyat.txt';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    function toggleSound() {
+      const audio = document.getElementById('ambient-sound');
+      if (audio.paused) audio.play();
+      else audio.pause();
+    }
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+    }
+  </script>
+</body>
+</html>
