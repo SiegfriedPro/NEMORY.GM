@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <title>NEMORY Calendar + AI Chat</title>
+  <style>
+    body { font-family: sans-serif; background: #111; color: #fff; margin: 20px; }
+    #aiModal {
+      display: none; position: fixed; z-index: 10000; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.75); display: none; justify-content: center; align-items: center;
+    }
+    .modal-content {
+      max-width: 500px; width: 90%; background: #222; color: #fff;
+      padding: 20px; border-radius: 10px;
+    }
+    .modal-buttons button {
+      background: #00e676; border: none; padding: 6px 12px; border-radius: 6px;
+      cursor: pointer; margin-left: 6px;
+    }
+    #micStatus {
+      margin-top: 10px; color: #00e676; font-weight: bold; display: none;
+    }
+  </style>
+</head>
+<body>
+  <label for="yearSelect">Рік:</label>
+  <input id="yearSelect" placeholder="Рік" />
+  <button onclick="openAIAssistant()" title="Поговорити з памʼяттю"
+    style="margin-left:8px;padding:4px 10px;border-radius:6px;border:none;background:#00e676;color:black;font-weight:bold;cursor:pointer;">
+    🤖 ШІ
+  </button>
+
+  <div id="aiModal">
+    <div class="modal-content">
+      <h3>🤖 Памʼять-бот</h3>
+      <p style="font-size:14px;margin-top:-10px;">Запитай про будь-який рік, день або категорію</p>
+      <textarea id="aiInput" placeholder="Що ти шукаєш?" rows="2" style="width:100%;padding:6px;border-radius:6px;margin-top:10px;"></textarea>
+      <div id="micStatus">🎙️ Слухаю...</div>
+      <div class="modal-buttons" style="margin-top:10px;text-align:right;">
+        <button onclick="closeAIAssistant()">Закрити</button>
+        <button onclick="runAIAssistant()">Шукати</button>
+        <button onclick="startRecognition()" title="Говорити">🎤</button>
+      </div>
+      <div id="aiResult" style="margin-top:15px;font-size:14px;line-height:1.4;"></div>
+    </div>
+  </div>
+
+<script>
+const months = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
+                "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
+
+function openAIAssistant() {
+  const modal = document.getElementById("aiModal");
+  modal.style.display = "flex";
+}
+
+function closeAIAssistant() {
+  const modal = document.getElementById("aiModal");
+  modal.style.display = "none";
+  document.getElementById("aiResult").innerHTML = "";
+}
+
+function runAIAssistant() {
+  const query = document.getElementById("aiInput").value.trim().toLowerCase();
+  const result = document.getElementById("aiResult");
+  if (!query) {
+    result.textContent = "Будь ласка, введи запит.";
+    return;
+  }
+
+  let responses = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(key)) {
+      const data = JSON.parse(localStorage.getItem(key));
+      const [year, month, day] = key.split("-");
+      const dateStr = `${parseInt(day)} ${months[parseInt(month)-1]} ${year}`;
+      const cats = (data.cats || []).join(", ");
+      const fullText = `${dateStr}: "${data.text || ''}" [${cats}]`.toLowerCase();
+
+      if (fullText.includes(query)) {
+        responses.push(`🧠 ${dateStr}: "${data.text || '—'}" <i>${cats}</i>`);
+      }
+    }
+  }
+
+  if (responses.length > 0) {
+    result.innerHTML = "<b>Знайдено:</b><br>" + responses.join("<br><br>");
+  } else {
+    result.innerHTML = "Нічого не знайдено...";
+  }
+}
+
+let recognition;
+function startRecognition() {
+  const status = document.getElementById("micStatus");
+  status.style.display = "none";
+
+  if (!('webkitSpeechRecognition' in window)) {
+    alert("❌ Цей браузер не підтримує голосове введення.");
+    return;
+  }
+
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = "uk-UA";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    status.style.display = "block";
+    status.textContent = "🎙️ Слухаю...";
+  };
+
+  recognition.onend = () => {
+    status.style.display = "none";
+  };
+
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    document.getElementById("aiInput").value = transcript;
+  };
+
+  recognition.onerror = function(event) {
+    status.style.display = "none";
+    let msg = "Помилка мікрофона: ";
+    switch(event.error) {
+      case "not-allowed": msg += "Доступ до мікрофона заборонено."; break;
+      case "no-speech": msg += "Не вдалося розпізнати мову."; break;
+      case "audio-capture": msg += "Мікрофон не знайдено."; break;
+      default: msg += event.error;
+    }
+    alert(msg);
+  };
+
+  recognition.start();
+}
+</script>
+</body>
+</html>
